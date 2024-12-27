@@ -1,0 +1,1508 @@
+      Guía de ejercicios - Relaciones N a N en los
+                        modelos
+
+      ¡Hola! Te damos la bienvenida a esta nueva guía de estudio.
+
+
+
+¿En qué consiste esta guía?
+
+La siguiente guía de estudio tiene como objetivo practicar y ejercitar los contenidos que
+hemos visto en clase.
+
+                                       ¡Vamos con todo!
+
+
+
+
+Tabla de contenidos
+Actividad guiada: TravelGuide                                                          2
+
+¡Manos a la obra! - Quiero ver los comentarios                                         11
+
+¡Manos a la obra! - ¡Quiero verlo!                                                     11
+
+Solución Manos a la Obra 1                                                             12
+
+Solución Manos a la Obra 2                                                             14
+
+
+
+
+                                      ¡Comencemos!
+
+
+
+
+_                                                                                  1
+
+                                     www.desafiolatam.com
+              Actividad guiada: TravelGuide
+
+A continuación, empezaremos a trabajar el proyecto de TravelGuide. Pedro siempre ha
+tenido interés por viajar a lugares donde parece que nunca se pasa mal. Sin embargo, el
+presupuesto de Pedro es limitado, por lo que quiere elegir muy bien su destino antes de
+realizar un gasto tan grande. Por esto te ha pedido desarrollar una plataforma donde los
+usuarios puedan subir sus historias de viaje, que otros usuarios puedan comentarlas y
+reaccionar a su historia para obtener reseñas de lugares de primera mano. Su hermano es
+desarrollador front-end y se encargará de los estilos de la página, por lo que solo debemos
+preocuparnos por las funcionalidades. Para nuestra primera entrega nos solicita los
+siguientes requisitos:
+
+    ●   Un usuario puede autenticarse en la aplicación.
+    ●   Un usuario puede comentar en las publicaciones de viajes.
+    ●   Los usuarios deben tener foto de perfil.
+    ●   Los usuarios pueden reaccionar tanto a los comentarios como a las publicaciones.
+    ●   Toda persona puede ver el índice de publicaciones.
+    ●   Las publicaciones de viajes pertenecen a un país en específico.
+
+
+
+Desarrollo:
+
+    ●   Paso 1: Creamos la aplicación llamada TravelGuide con base de datos PostgreSql
+
+
+ rails new TravelGuide -d postgresql
+
+
+    ●   Paso 2: Creamos la base de datos
+
+
+ rails db:create
+
+
+    ●   Paso 3: Identificamos los modelos a integrar
+
+
+
+
+_                                                                                    2
+
+                                  www.desafiolatam.com
+                           Imagen 1. DIagrama entidad relación
+                                 Fuente: Desafío Latam.
+
+    ●   Paso 4: Creamos los modelos en base de datos mediante scaffold (opcional, puedes
+        realizarlo a mano si lo deseas).
+            a. User con Devise.
+
+
+#Gemfile
+gem 'devise'
+
+
+#bashrc
+bundle
+
+
+#bashrc
+rails generate devise:install
+
+
+#bashrc
+rails g devise:views
+
+
+#bashrc
+rails generate devise user
+
+
+
+
+_                                                                                 3
+
+                                 www.desafiolatam.com
+          b. Agregamos campos a User.
+
+
+#bashrc
+rails g migration AddDetailsToUsers photo name
+
+
+#bashrc
+rails db:migrate
+
+
+          c. Agregamos strong params.
+
+
+#app/controllers/application_controller.rb
+class ApplicationController < ActionController::Base
+  before_action :configure_permitted_parameters, if: :devise_controller?
+
+    protected
+
+  def configure_permitted_parameters
+    devise_parameter_sanitizer.permit(:sign_up, keys: [:name, :photo])
+    devise_parameter_sanitizer.permit(:account_update, keys: [:name,
+:photo])
+  end
+end
+
+
+          d. Agregamos campos al formulario de registro.
+
+
+#app/views/devise/registrations/new.html.erb
+  <div class="field">
+    <%= f.label :name %><br />
+    <%= f.text_field :name, autocomplete: "name" %>
+  </div>
+
+    <div class="field">
+      <%= f.label :photo %><br />
+      <%= f.text_field :photo, autocomplete: "photo" %>
+    </div>
+
+
+          e. Creamos modelo de Country.
+
+
+#bashrc
+rails g model Country name
+
+
+
+
+_                                                                    4
+
+                               www.desafiolatam.com
+           f.   Hacemos scaffold de Articles.
+
+
+#bashrc
+rails g scaffold articles title description when_went:datetime
+country:references
+
+
+           g. Creamos modelos Comment.
+
+
+#bashrc
+rails g model comment content article:references user:references
+
+
+           h. Creamos modelo Reaction
+
+
+#bashrc
+rails g model reaction article:references user:references kind
+reaction_type comment:references
+
+
+            ¡No olvides revisar la migración, en este caso necesitas que article_id y
+           comment_id no tengan “null: false”!
+
+
+
+#bashrc
+rails db:migrate
+
+
+    ●   Paso 5: Relacionar las tablas en los modelos.
+
+
+#app/models/article.rb
+class Article < ApplicationRecord
+  belongs_to :country
+  has_many :comments, dependent: :destroy
+  has_many :reactions, dependent: :destroy
+  has_many :users, through: :reactions #or comments doesn't matter
+end
+
+
+#app/models/comment.rb
+class Comment < ApplicationRecord
+  belongs_to :article
+  belongs_to :user
+  has_many :reactions, dependent: :destroy
+end
+
+
+
+_                                                                               5
+
+                                  www.desafiolatam.com
+#app/models/country.rb
+class Country < ApplicationRecord
+  has_many :articles, dependent: :destroy
+end
+
+
+#app/models/reaction.rb
+class Reaction < ApplicationRecord
+  belongs_to :article, optional: true
+  belongs_to :user
+  belongs_to :comment, optional: true
+end
+
+
+#app/models/user.rb
+class User < ApplicationRecord
+  # Include default devise modules. Others available are:
+  # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
+  devise :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :validatable
+  has_many :reactions
+  has_many :comments
+  has_many :articles, through: :reactions
+end
+
+
+    ●   Paso 6: Arreglamos el problema de inicio de sesión de Devise.
+
+
+#config/initializers/devise
+config.navigational_formats = ['*/*', :html, :turbo_stream]
+
+
+    ●   Paso 7: Integramos la gema Faker.
+
+
+#Gemfile
+gem 'faker'
+
+
+#bashrc
+bundle
+
+
+
+
+_                                                                       6
+
+                                  www.desafiolatam.com
+    ●   Paso 8: Agregamos datos de prueba para artículos.
+
+#db/seeds
+until Country.count == 20 do
+  Country.create(name: Faker::Address.country) if
+!Country.pluck(:name).include?(Faker::Address.country)
+end
+
+countries = Country.all
+
+until Article.count == 100 do
+  Article.create(title: Faker::Book.title, description:
+Faker::Lorem.paragraph_by_chars(number: 200, supplemental: false), when_went:
+Faker::Date.between(from: 10.years.ago, to: Date.today), country_id:
+countries.sample.id)
+end
+
+
+
+    ●   Paso 9: Agregamos índice de artículos como nuestra ruta raíz
+
+
+#config/routes.rb
+root "articles#index"
+
+
+    ●   Paso 10: Agregamos tipos de reacciones como constante.
+
+
+#app/models/article.rb
+Kinds = %w[like dislike not_interested neutral].freeze
+KindsSpanish = {"like" => "Me gusta", "dislike" => "No me gusta",
+"not_interested" => "No me interesa", "neutral" => "Neutral"}.freeze
+
+
+    ●   Paso 11: Agregamos controlador, método y ruta para crear reacciones.
+
+
+#bashrc
+rails g controller reactions
+
+
+#app/controllers/reactions_controller.rb
+class ReactionsController < ApplicationController
+
+    def new_user_reaction
+      @user = current_user
+      @type = params[:reaction_type]
+      @article = Article.find(params[:article_id]) if params[:article_id]
+      @comment = Comment.find(params[:comment_id]) if params[:comment_id]
+      @kind = params[:kind]
+      respond_to do |format|
+
+
+
+_                                                                              7
+
+                                  www.desafiolatam.com
+      (@type == "comment") ? reaction_comment = Reaction.find_by(user_id: @user,
+comment_id: @comment.id) : reaction_article = Reaction.find_by(user_id: @user.id,
+article_id: @article.id)
+
+      if reaction_article || reaction_comment
+        format.html { redirect_to article_path(@article), notice: 'You already reacted
+to this article' }
+      else
+        (@type == "article") ? @reaction = Reaction.new(user_id: @user.id, article_id:
+@article.id, reaction_type: @type, kind: @kind) : @reaction = Reaction.new(user_id:
+@user.id, comment_id: @comment.id, reaction_type: @type, kind: @kind)
+        if @reaction.save!
+          format.html { redirect_to article_path(@article), notice: 'Reaction was
+successfully created.' }
+        else
+          format.html { redirect_to article_path(@article), notice: 'Something went
+wrong' }
+        end
+      end
+
+      end
+    end
+
+end
+
+
+
+#config/routes.rb
+post '/new_user_reaction', to: 'reactions#new_user_reaction', as:
+'new_user_reaction'
+
+
+    ●   Paso 12: Agregar botón para crear reacción en vista show del artículo.
+
+
+#app/views/articles/show.html.erb
+<p style="color: green"><%= notice %></p>
+
+<%= render @article %>
+
+<div>
+  <%= link_to "Edit this article", edit_article_path(@article) %> |
+  <%= link_to "Back to articles", articles_path %>
+
+    <%= button_to "Destroy this article", @article, method: :delete %>
+
+  <% Article::Kinds.each do |kind| %>
+    <%= button_to "#{Article::KindsSpanish[kind]}",
+new_user_reaction_path(article_id: @article.id, reaction_type:
+"article", kind: kind), method: :post %>
+  <% end %>
+
+
+
+_                                                                                   8
+
+                                  www.desafiolatam.com
+</div>
+
+
+    ●   Paso 13: Agregar controlador de creación de comentarios con su ruta.
+
+
+#bashrc
+rails g controller comments
+
+
+#app/controllers/comments_controller.rb
+class CommentsController < ApplicationController
+
+  def create
+    @article = Article.find(params[:comment][:article_id])
+    @comment = Comment.new(comment_params)
+    @comment.user = current_user
+    respond_to do |format|
+      if @comment.save
+        format.html { redirect_to article_path(@article.id), notice:
+'Comment was successfully created.' }
+      else
+        format.html { redirect_to article_path(@article.id), notice:
+'Comment was not created.' }
+      end
+    end
+  end
+
+    private
+
+    def comment_params
+      params.require(:comment).permit(:content, :article_id)
+    end
+
+end
+
+
+#config/routes.rb
+resources :comments, only: [:create]
+
+
+    ●   Paso 14: Agregar formulario de comentarios a vista show de artículos.
+
+
+#app/views/comments/_form.html.erb
+<%= form_with(model: @comment, local: true) do |f| %>
+
+
+
+_                                                                               9
+
+                                  www.desafiolatam.com
+    <% if @comment.errors.any? %>
+        <div id = 'error_explanation'>
+            <h2>Este comentario no se pudo crear por las siguientes
+razones</h2>
+            <ul>
+                <% @comment.errors.full_messages.each do |msg|%>
+                    <li><%= msg %></li>
+                <% end %>
+            </ul>
+        </div>
+    <% end %>
+
+        <%= f.hidden_field :article_id, value: @article.id %>
+
+        <div class = 'field'>
+            <%= f.label :content, as: "Contenido" %>
+            <%= f.text_field :content %>
+
+    <div class = 'actions'>
+        <%= f.submit %>
+    </div>
+<% end %>
+
+
+
+#app/views/articles/show.html.erb
+<%= render 'comments/form' %>
+
+
+    ●    Paso 15: Agregar variable @comment a métodos necesarios en controlador articles
+
+
+#app/controllers/artciles_controller.rb
+  def show
+    @comment = Comment.new
+  end
+
+
+
+
+_                                                                                  10
+
+                                  www.desafiolatam.com
+           ¡Manos a la obra! - Quiero ver los comentarios
+
+       Pedro nos ha pedido que los comentarios se carguen dentro de la vista del artículo,
+       además quiere muchos comentarios dentro de la página para poder aplicarle estilo
+       después. Los comentarios deben verse con la foto de perfil del usuario junto al
+       contenido del mismo y no le gusta el campo when_went, quiere que aparezca como
+       “Cuando fui”.
+
+          ●   Mostrar comentarios en vista show del artículo.
+          ●   Rellenar el seed con más datos ficticios.
+          ●   Cambiar la forma en que se muestra when_went en el parcial de artículos.
+
+
+
+
+          ¡Manos a la obra! - ¡Quiero verlo!
+
+       Pedro nos ha dicho que le gustó mucho nuestra implementación, pero que necesita
+       tener la aplicación en su computador para hacer pruebas.
+
+          ●   Realizar deploy a heroku.
+
+En la plataforma tendrás acceso al código finalizado de esta aplicación con el nombre
+Material de apoyo - Guía de ejercicios - Relaciones N a N en los modelos.
+
+
+
+
+_                                                                                       11
+
+                                  www.desafiolatam.com
+Solución Manos a la Obra 1
+    ●   Paso 1: Agregamos comentarios al controlador show de artículos.
+
+
+#app/controllers/articles_controller.rb
+def show
+  @comment = Comment.new
+  @comments = @article.comments
+end
+
+
+    ●   Paso 2: Agregamos los comentarios a la vista show del artículo.
+
+
+#app/views/comments/_article_comments.html.erb
+<div>
+    <% @comments.each do |comment| %>
+        <p>
+            <%= image_tag(comment.user.photo) %>
+            <%= comment.content %>
+        </p>
+    <% end %>
+</div>
+
+
+
+#app/views/articles/show.html.erb
+<%= render 'comments/article_comments' %>
+
+
+    ●   Paso 3: Agregamos comentarios y reacciones al seed.
+
+
+#db/seeds.rb
+until Country.count == 20 do
+  Country.create(name: Faker::Address.country) if
+!Country.pluck(:name).include?(Faker::Address.country)
+end
+
+countries = Country.all
+
+until Article.count == 100 do
+  Article.create(title: Faker::Book.title, description:
+Faker::Lorem.paragraph_by_chars(number: 200, supplemental: false),
+when_went: Faker::Date.between(from: 10.years.ago, to: Date.today),
+country_id: countries.sample.id)
+end
+
+
+
+_                                                                         12
+
+                                  www.desafiolatam.com
+i = 0
+until User.count == 20 do
+  User.create(email: "test#{i}@gmail", password: "asdasdasd",
+"password_confirmation": "asdasdasd", photo: Faker::Avatar.image, name:
+Faker::Name.name)
+  i += 1
+end
+
+articles = Article.all
+users = User.all
+
+until Comment.count == 1000 do
+  Comment.create(content: Faker::Lorem.paragraph_by_chars(number: 200,
+supplemental: false), article_id: articles.sample.id, user_id:
+users.sample.id)
+end
+
+r_type = %w[article comment]
+comments = Comment.all
+kinds = Article::Kinds
+
+until Reaction.count == 1000 do
+  rel_type = r_type.sample
+  if rel_type == "article"
+    Reaction.create(article_id: articles.sample.id,          user_id:
+users.sample.id, kind: kinds.sample, reaction_type:          rel_type)
+  else
+    Reaction.create(comment_id: comments.sample.id,          user_id:
+users.sample.id, kind: kinds.sample, reaction_type:          rel_type)
+  end
+
+end
+
+
+     ●   Paso 4: Cambiamos la forma en que se muestra el parametro when_went
+
+
+    #app/views/articles/_article.html.erb
+     <p>
+       <strong>Cuando fui:</strong>
+       <%= article.when_went %>
+     </p>
+
+
+
+
+_                                                                              13
+
+                                 www.desafiolatam.com
+Solución Manos a la Obra 2
+    ●   Realizar deploy a heroku.
+           a. Tenemos que logearnos en heroku
+
+
+ heroku login
+
+
+           b. Creamos una aplicación
+
+
+ heroku create
+
+
+           c. Subimos los cambios a heroku
+
+
+ git push heroku main
+
+
+           d. Corremos las migraciones para el correcto funcionamiento
+
+
+ heroku run rake db:migrate
+
+
+           e. Corremos el seed para tener datos
+
+
+ heroku run rake db:seed
+
+
+En la plataforma te compartimos el código de este ejercicio con el nombre “Material de
+apoyo - Guía de ejercicios - Relaciones N a N en los modelos”
+
+
+
+
+_                                                                               14
+
+                                 www.desafiolatam.com
+ Relaciones N a N
+  en los modelos
+Modelos con relaciones N a N (Parte I)
+                               ●   Unidad 1: Relaciones 1 a N.
+
+                               ●   Unidad 2: Mecanismos de
+                                   autenticación y control de accesos
+                                   en una aplicación web.
+Implementar relaciones N a
+N en los modelos utilizando    ●   Unidad 3: Relaciones N a N en los    Te encuentras aquí
+
+     Ruby on Rails para            modelos.
+satisfacer un requerimiento.
+                               ●   Unidad 4: Utilizar Amazon S3 en
+                                   proyecto en Rails.
+
+                               ●   Unidad 5: Pruebas unitarias y
+                                   funcionales.
+¿Qué aprenderás en esta sesión?
+●   Implementación de relaciones N a N con dos modelos.
+¿Cuándo es necesario
+  crear las vistas de
+       devise?
+Modelos con relaciones N a N (Parte I)
+Conceptos Importantes
+
+
+ ●   Modelos
+
+ ●   Relaciones N a N
+
+ ●   E-commerce
+
+ ●   Relaciones 1 a N
+
+ ●   Normalización
+/* Implementación de relaciones N a N
+         con dos modelos. */
+Implementación de relaciones N a N con dos modelos.
+2 modelos 3 tablas
+
+
+ ●   Las relaciones N a N no existen en una base de datos normalizada.
+ ●   Toda relación N a N debe ser convertida a una serie de relaciones 1 a N con tabla
+     intermedia.
+ ●   La tabla intermedia no siempre se ve reﬂejada en los modelos de rails.
+  Ejercicio guiado:
+
+Catálogo de productos
+Catálogo de productos
+Contexto
+
+Necesitamos desarrollar un catálogo de productos donde el usuario pueda revisar los
+productos que se encuentran en él y poder determinar entre muchas opciones cuál es su
+postura ante el producto. Además, los productos tendrán categorías asociadas para poder
+ordenarlos en un futuro.
+
+A lo largo de las siguientes presentaciones iremos completándolo paso a paso para poder
+cumplir con estos requerimientos.
+Catálogo de productos
+
+ ●   Paso 1: Creamos el proyecto, utilizando PostgreSql como base de datos.
+
+     #bashrc
+     rails new Catalog -d postgresql
+
+
+
+
+ ●   Paso 2: Creamos la base de datos.
+
+     #bashrc
+     rails db:create
+Catálogo de productos
+
+ ●   Paso 3: Identiﬁcar entidades
+Catálogo de productos
+
+ ●   Paso 4: Normalizar tablas.
+Catálogo de productos
+Solución
+
+ ●   Paso 5: Creamos el modelo category.
+
+     #bashrc
+     rails g scaffold category name
+
+
+
+ ●   Paso 6: Creamos el modelo productos.
+
+     #bashrc
+     rails g scaffold product name price:integer size:integer
+Catálogo de productos
+Solución
+
+ ●   Paso 7: Creamos tabla intermedia entre categorías y productos
+     7.1: Creamos migración
+       #bashrc
+       rails g migration CreateJoinTableCategoriesProducts category product
+
+
+     7.2: Revisamos migración
+Catálogo de productos
+Solución
+
+ ●   Paso 8: Corremos la migración en la base de datos.
+
+     #bashrc
+     rails db:migrate
+
+
+
+
+ ●   Paso 9: Agregamos relaciones a los modelos.
+     9.1: Agregamos relación a category
+
+                          #app/models/category.rb
+                          class Category < ApplicationRecord
+                            has_and_belongs_to_many :products
+                          end
+Catálogo de productos
+Solución
+
+ ●   Paso 9: Agregamos relaciones a los modelos.
+     9.2: Agregamos relación a product
+
+      #app/models/product.rb
+      class Product < ApplicationRecord
+        has_and_belongs_to_many :categories
+      end
+
+
+
+ ●   Paso 10: Agregamos la gema Faker.
+
+      #bashrc
+      bundle add faker
+Catálogo de productos
+Solución
+
+ ●   Paso 11: Validamos que la categoría tenga nombre único.
+
+      #app/models/category.rb
+      validates :name, uniqueness: true
+Catálogo de productos
+Solución
+
+ ●   Paso 12: Rellenamos las categorías con datos de prueba, para ello utilizaremos el
+     archivo seeds.rb.
+      #db/seeds.rb
+      while Category.count < 10
+        if !Category.pluck(:name).include?(Faker::Game.genre)
+          unique_name = Faker::Game.genre
+          Category.create(name: unique_name)
+        end
+      end
+Catálogo de productos
+Solución
+
+ ●   Paso 13: Deﬁnimos /products como la ruta raíz de la aplicación.
+
+      #config/routes.rb
+      root "products#index"
+Catálogo de productos
+Solución
+
+ ●   Paso 14: Al crear un producto le asociamos una categoría.
+     14.1: Agregar campo al controlador
+
+     #app/controllers/product_controller.rb
+     def product_params
+      params.require(:product).permit(:name, :price, :size, :category_ids => [])
+     end
+Catálogo de productos
+Solución
+
+ ●   Paso 14: Al crear un producto le asociamos una categoría.
+     14.2: Agregar campos en formulario
+
+     #app/views/products/_form.html.erb
+     <div>
+       <%= form.label :category_ids, style: "display: block" %>
+       <%= form.select :category_ids, options_from_collection_for_select(@categories,
+     :id, :name) %>
+     </div>
+Catálogo de productos
+Solución
+
+ ●   Paso 14: Al crear un producto le asociamos una categoría.
+     14.3: Modiﬁcamos métodos del controlador
+
+     #app/controllers/product_controller.rb
+     before_action :set_categories, only: %i[ new edit create update]
+
+     def set_categories
+       @categories = Category.all
+     end
+Catálogo de productos
+Solución
+
+ ●     Paso 14: Al crear un producto le asociamos una categoría.
+       14.4: Modiﬁcamos el método create
+     #app/controllers/product_controller.rb
+     def create
+       @product = Product.new(product_params)
+       respond_to do |format|
+         if @product.save
+           format.html { redirect_to product_url(@product), notice: "Product was successfully created." }
+           format.json { render :show, status: :created, location: @product }
+         else
+           format.html { render :new, status: :unprocessable_entity }
+           format.json { render json: @product.errors, status: :unprocessable_entity }
+         end
+       end
+     end
+Catálogo de productos
+Solución
+
+ ●   Paso 14: Al crear un producto le asociamos una categoría.
+     14.5: Creamos nuestro primer producto
+Catálogo de productos
+Solución
+
+ ●   Paso 14: Al crear un producto le asociamos una categoría.
+     14.6: Revisamos resultado en terminal
+Catálogo de productos
+Solución
+
+ ●   Paso 15: Revisamos creación del objeto por consola
+Catálogo de productos
+Solución
+
+ ●   Paso 16: Revisamos la relación entre productos y categorías por consola.
+ Ejercicio propuesto
+
+“Agregando Usuarios”
+Agregando Usuarios
+
+Debemos agregar usuarios a nuestro catálogo de productos, como primeros
+requisitos se pide lo siguiente:
+
+ ●   Realizar autenticación básica con Devise.
+ ●   Agregar Bootstrap al proyecto (método libre).
+ ●   Un usuario puede ir a cerrar sesión, iniciar sesión y/o registrarse, desde un
+     navbar de navegación.
+ Si utilizamos 2 modelos, 3
+tablas ¿Podemos acceder a
+ la información de la tabla
+          intermedia?
+Próxima sesión…
+●   Implementación de relaciones N a N con tres modelos.
+●   Has_many :through vs Has_and_belongs_to_many
+●   Borrado en cascada en relaciones N a N.
+ Relaciones N a N
+  en los modelos
+Modelos con relaciones N a N (Parte II)
+                               ●   Unidad 1: Relaciones 1 a N.
+
+                               ●   Unidad 2: Mecanismos de
+                                   autenticación y control de accesos
+                                   en una aplicación web.
+Implementar relaciones N a
+N en los modelos utilizando    ●   Unidad 3: Relaciones N a N en los    Te encuentras aquí
+
+     Ruby on Rails para            modelos.
+satisfacer un requerimiento.
+                               ●   Unidad 4: Utilizar Amazon S3 en
+                                   proyecto en Rails.
+
+                               ●   Unidad 5: Pruebas unitarias y
+                                   funcionales.
+¿Qué aprenderás en esta sesión?
+●   Implementación de relaciones N a N con tres modelos.
+●   Has_many :through vs Has_and_belongs_to_many
+●   Borrado en cascada en relaciones N a N.
+      ¿Cuándo es
+recomendado utilizar la
+     funcionalidad
+has_and_belongs_to_ma
+          ny?
+Modelos con relaciones N a N (Parte I)
+Conceptos Importantes
+
+
+ ●   Modelos
+
+ ●   Relaciones N a N
+
+ ●   E-commerce
+
+ ●   Relaciones 1 a N
+
+ ●   Normalización
+¿Por qué crees que esta funcionalidad de
+rails no es recomendada?
+● ¿Qué fue lo que más
+  te costó de la sesión
+  anterior?
+● ¿Cuáles son las
+  ventajas de los
+  índices en una base
+  de datos?
+/* Modelos con relaciones N a N (Parte
+                 II) */
+Relaciones N a N con tres modelos
+3 modelos 3 tablas
+
+
+Esta es la funcionalidad más utilizada para poder recrear el comportamiento de tablas
+intermedias, se recomienda su uso cuando existe lógica en la tabla intermedia, es decir, un
+atributo que está en esa tabla.
+     Ejercicio guiado:
+
+"Agregando reacciones a los
+        productos"
+Agregando reacciones a los productos
+Contexto
+Seguiremos trabajando en el proyecto Catálogo de Productos, agregaremos una
+nueva funcionalidad sobre el mismo.
+
+Para poder realizar esta actividad debes haber completado la primera presentación
+de Modelos con relaciones N a N.
+
+Para continuar este ejercicio tendrás acceso en la plataforma al “Material de apoyo -
+Modelos con relaciones N a N (Parte II)”
+Agregando reacciones a los productos
+
+Muchas páginas de redes sociales cuentan con reacciones a sus publicaciones, en
+este caso crearemos reacciones a los productos por parte de los usuarios de la
+aplicación.
+
+ ●   Paso 1: Identiﬁcamos relaciones
+Agregando reacciones a los productos
+
+ ●   Paso 2: Creamos el modelo reacciones
+
+     #bashrc
+     rails g model Reaction kind product:references user:references
+
+
+ ●   Paso 3: Corremos las migraciones
+
+     #bashrc
+     rails db:migrate
+Agregando reacciones a los productos
+
+ ●    Paso 4: Relacionamos los modelos
+      4.1: Complementamos modelo producto
+
+     #app/models/product.rb
+     class Product < ApplicationRecord
+       has_and_belongs_to_many :categories
+       has_many :reactions
+       has_many :users, through: :reactions
+     end
+Agregando reacciones a los productos
+
+ ●    Paso 4: Relacionamos los modelos
+      4.2: Complementamos modelo usuario
+     #app/models/user.rb
+     class User < ApplicationRecord
+       # Include default devise modules. Others available are:
+       # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
+       devise :database_authenticatable, :registerable,
+              :recoverable, :rememberable, :validatable
+       has_many :reactions
+       has_many :products, through: :reactions
+     end
+has_many through
+Relaciones transitivas
+
+
+Si tenemos un blog que puede recibir muchos likes de usuarios, al igual que un usuario
+puede dar muchos likes a un blog, esto es una relación muchos a muchos, de esa forma el
+usuario tiene una relación transitiva con la tabla likes a la tabla blog, para poder llegar a un
+blog debe pasar por una tabla intermedia llamada like. De la misma forma, para que un blog
+obtenga la información del usuario debe pasar a través de la tabla like. El usuario tiene
+blogs a través de likes y el blog tiene usuarios a través de likes, por lo que la tabla
+intermedia likes tiene una relación transitiva con ambas tablas.
+¿Cuándo se debe utilizar
+has_and_belongs_to_many y cuando
+has_many through?
+Agregando reacciones a los productos
+
+ ●    Paso 5: Limitamos la cantidad de tipo de reacciones.
+
+     #app/models/reaction.rb
+     class Reaction < ApplicationRecord
+       belongs_to :product
+       belongs_to :user
+
+       validates :kind, acceptance: {
+         accept: %w[like dislike boring neutral uninterested interested],
+       }
+     end
+Agregando reacciones a los productos
+
+ ●    Paso 6: Agregamos un método de clase para visualizar opciones fácilmente.
+
+     #app/models/reaction.rb
+     class Reaction < ApplicationRecord
+       belongs_to :product
+       belongs_to :user
+
+      validates :kind, acceptance: {
+        accept: %w[like dislike boring neutral uninterested interested],
+      }
+
+       def self.kinds
+         %w[like dislike boring neutral uninterested interested]
+       end
+     end
+Agregando reacciones a los productos
+
+ ●    Paso 7: Probamos el método de clase
+
+     #rails c
+     Reaction.kinds => ["like", "dislike", "boring", "neutral", "uninterested",
+     "interested"]
+
+
+ ●    Paso 8: Creamos controlador para reacciones
+
+     #bashrc
+     rails g controller reactions
+Agregando reacciones a los productos
+
+ ●   Paso 9: Creamos el método para que el usuario pueda reaccionar
+     #app/controllers/reactions_controller.rb
+     class ReactionsController < ApplicationController
+       def user_reaction
+         @user = current_user
+         @product = Product.find(params[:product_id])
+         reaction = Reaction.find_by(user_id: @user.id, product_id: @product.id)
+         if reaction
+           return flash.now[:alert] = 'You already reacted to this product'
+         else
+           @new_reaction = Reaction.new(user_id: @user.id, product_id: @product.id, kind: params[:kind])
+           respond_to do |format|
+              if @new_reaction.save!
+                format.html { redirect_to product_path(@product), notice: "#{current_user.email} has stated that it #{@new_reaction.kind}
+     the product" }
+              else
+                format.html { redirect_to product_path(@product), status: :unprocessable_entity }
+              end
+           end
+         end
+       end
+     end
+Agregando reacciones a los productos
+
+ ●   Paso 10: Restringimos para que solo un usuario conectado pueda reaccionar.
+     #app/controllers/reactions_controller.rb
+     before_action :authenticate_user!
+
+
+
+ ●   Paso 11: Creamos la ruta para el método nuevo.
+     #config/routes.rb
+     post '/reactions', to: 'reactions#user_reaction', as: 'user_reaction'
+Agregando reacciones a los productos
+
+ ●   Paso 12: Agregamos vista parcial para las reacciones.
+
+ #app/views/reactions/_options.html.erb
+ <div class="container">
+   <ul>
+     <% Reaction.kinds.each do |kind| %>
+        <li><%= button_to "#{kind}", user_reaction_path(product_id: @product.id, kind: kind),
+ method: :post %></li>
+     <% end %>
+   </ul>
+ </div>
+Agregando reacciones a los productos
+
+ ●   Paso 13: Agregamos una vista parcial con un contador de reacciones por producto.
+ #app/views/reactions/_counters.html.erb
+ <div class="container">
+     <ul>
+          <% Reaction.kinds.each do |kind| %>
+              <li> <%= @product.reactions.where(kind: kind).count %> - <%= kind %> </li>
+          <% end %>
+     </ul>
+ </div>
+Agregando reacciones a los productos
+
+ ●   Paso 14: Llamamos a la vista parcial en la vista show del producto.
+ #app/views/products/show.html.erb
+ <div>
+   <%= render 'reactions/options' %>
+ </div>
+Agregando reacciones a los productos
+
+ ●   Paso 15: Creamos método para que el usuario vea los productos a los cuales ha
+     reaccionado.
+ #app/controllers/reactions_controller.rb
+ def product_with_reactions
+   @reactions = current_user.reactions
+   product_ids = @reactions.map(&:product_id)
+   @products = Product.where(id: product_ids)
+ end
+Agregando reacciones a los productos
+
+ ●    Paso 16: Creamos ruta para nuestro nuevo método.
+
+     #config/routes.rb
+     get '/my_reactions', to: 'reactions#product_with_reactions', as: 'my_reactions
+
+
+
+ ●    Paso 17: Creamos link en el navbar para ir a la ruta
+     #app/views/shared/_navbar.html.erb
+     <% if user_signed_in? %>
+       <li class="nav-item">
+         <%= link_to 'Tus reacciones', my_reactions_path, class: 'nav-link' %>
+       </li>
+     <% end %>
+Agregando reacciones a los productos
+
+ ●   Paso 18: Creamos vista para nuestro nuevo método.
+ #app/views/reactions/product_with_reactions.erb
+ <h1>Products</h1>
+ <ul>
+      <% @products.each do |product| %>
+          <li>
+              <%= product.name %> -
+              <%= product.reactions.find_by(user_id: current_user.id).kind %>
+              <p>
+                  <%= link_to "Show this product", product %>
+              </p>
+          </li>
+      <% end %>
+ </ul>
+Agregando reacciones a los productos
+
+ ●    Paso 19: Quitamos lógica de las vistas
+      19.1: Creamos método en modelo product
+ #app/models/product.rb
+   def count_with_kind(arg)
+     number = self.reactions.where(kind: arg).count
+     return "#{arg} - #{number}"
+   end
+
+     def find_kind_user_relation(user)
+       self.reactions.find_by(user_id: user.id).kind
+     end
+Agregando reacciones a los productos
+
+ ●   Paso 19: Quitamos lógica de las vistas
+     19.2: Modiﬁcamos la vista parcial _counters.html.erb
+ #app/views/reactions/_counters.html.erb
+ <div class="container">
+     <ul>
+          <% Reaction.kinds.each do |kind| %>
+              <li> <%= @product.count_with_kind(kind) %> </li>
+          <% end %>
+     </ul>
+ </div>
+Agregando reacciones a los productos
+
+ ●     Paso 19: Quitamos lógica de las vistas
+       19.3: Modiﬁcamos vista product_with_reactions.html.erb
+     #app/views/reactions/product_with_reactions.html.erb
+     <h1>Products</h1>
+     <ul>
+          <% @products.each do |product| %>
+              <li>
+                   <%= product.name %> -
+                   <%= product.find_kind_user_relation(current_user) %>
+                   <p>
+                        <%= link_to "Show this product", product %>
+                   </p>
+              </li>
+          <% end %>
+     </ul>
+/* Borrado en cascada
+en relaciones N a N */
+Agregando reacciones a los productos
+
+ ●   Paso 20: Al borrar un producto debe borrarse la reacción del usuario.
+
+ #app/models/product.rb
+ has_many :reactions, dependent: :destroy
+
+
+
+ ●   Paso 21: Probamos mediante rails console.
+Borrando elementos en cascada
+
+La función de ActiveRecord llamada “dependent: :destroy” borra registros asociados a un
+objeto cuando este es eliminado, en la diapositiva anterior, se borró el objeto
+CategoryProduct al eliminar un producto al cual tiene relación.
+
+De no llamar a este método, el objeto CategoryProduct quedaría sin relación aceptada, es
+decir, haría referencia a un objeto que ya no existe en la base de datos. Esto no es aceptado
+por PostgreSQL ni por ninguna base de datos que tenga relaciones, por lo que borra en
+cascada los elementos que han sido relacionados al objeto eliminado para evitar registros
+falsos en base de datos.
+   ¿Por qué al eliminar el
+   producto se eliminó el
+     registro de la tabla
+intermedia con categorías?
+Próxima sesión…
+●   Asignar recursos vía checkbox, siguiendo
+    convenciones REST e ingresarlas como recurso
+    anidado.
+ Relaciones N a N
+  en los modelos
+Modelos con relaciones N a N (Parte III)
+                               ●   Unidad 1: Relaciones 1 a N.
+
+                               ●   Unidad 2: Mecanismos de
+                                   autenticación y control de accesos
+                                   en una aplicación web.
+Implementar relaciones N a
+N en los modelos utilizando    ●   Unidad 3: Relaciones N a N en los    Te encuentras aquí
+
+     Ruby on Rails para            modelos.
+satisfacer un requerimiento.
+                               ●   Unidad 4: Utilizar Amazon S3 en
+                                   proyecto en Rails.
+
+                               ●   Unidad 5: Pruebas unitarias y
+                                   funcionales.
+¿Qué aprenderás en esta sesión?
+●   Asignar recursos vía checkbox, siguiendo
+    convenciones REST e ingresarlas como recurso
+    anidado.
+¿De qué forma podemos
+  borrar recursos en
+       cascada?
+Modelos con relaciones N a N (Parte I)
+Conceptos Importantes
+
+
+ ●   Modelos
+
+ ●   Relaciones N a N
+
+ ●   E-commerce
+
+ ●   Relaciones 1 a N
+
+ ●   Normalización
+¿De qué forma se puede evitar la lógica
+            en las vistas?
+ ● ¿Qué fue lo que más
+   te costó de la sesión
+          anterior?
+● ¿Qué nombres son los
+     más utilizados al
+      crear una tabla
+        intermedia?
+/* Modelos con relaciones
+    N a N (Parte III) */
+Agregando recursos anidados
+Formularios anidados
+
+
+Un formulario anidado nos permite generar una mejor experiencia de usuario al trabajar con
+modelos relacionados, ya que de esta manera no se tendrá que estar cambiando a las vistas
+de cada modelo para hacer cambios.
+  Ejercicio guiado:
+"Anidando recursos"
+Agregando reacciones a los productos
+Contexto
+
+
+Seguiremos trabajando en el proyecto Catálogo de Productos, modiﬁcaremos
+algunas funcionalidades para abordar mejor las relaciones N a N.
+
+Para poder realizar esta actividad debes haber completado la segunda presentación
+de Modelos con relaciones N a N.
+
+Para continuar este ejercicio tendrás acceso en la plataforma al “Material de apoyo -
+Modelos con relaciones N a N (Parte III)”
+Anidando recursos
+
+ ●     Paso 1: Al momento de crear un producto podemos asignarle más de una categoría.
+       1.1: Cambiamos select por collection_check_boxes
+
+     #app/views/products/_form.html.erb
+     <div>
+       <%= form.label :category_ids, style: "display: block", class: "form-group" %>
+         <div class="row">
+            <%= form.collection_check_boxes(:category_ids, @categories, :id, :name) do |b|%>
+                <div class="col-md-2">
+                  <span class="w100 form-control my-2"><%= b.label { b.check_box + " " + b.text }
+     %></span>
+                </div>
+            <% end %>
+         </div>
+     </div>
+Anidando recursos
+
+ ●     Paso 1: Al momento de crear un producto podemos asignarle más de una categoría.
+       1.2: Modiﬁcamos métodos del controlador products partiendo por create
+
+     #app/controllers/product_controller.rb
+     def create
+       @product = Product.new(product_params)
+       @product.categories << Category.where(id: params[:product][:category_ids])
+       respond_to do |format|
+         if @product.save
+           format.html { redirect_to product_url(@product), notice: "Product was successfully created." }
+           format.json { render :show, status: :created, location: @product }
+         else
+           format.html { render :new, status: :unprocessable_entity }
+           format.json { render json: @product.errors, status: :unprocessable_entity }
+         end
+       end
+     end
+Anidando recursos
+
+ ●     Paso 1: Al momento de crear un producto podemos asignarle más de una categoría.
+       1.3: Modiﬁcamos métodos del controlador products ahora update
+
+     #app/controllers/product_controller.rb
+     def update
+       respond_to do |format|
+         if @product.update(product_params)
+           @product.categories.clear.push(Category.where(id: params[:product][:category_ids]))
+           format.html { redirect_to product_url(@product), notice: "Product was successfully updated." }
+           format.json { render :show, status: :ok, location: @product }
+         else
+           format.html { render :edit, status: :unprocessable_entity }
+           format.json { render json: @product.errors, status: :unprocessable_entity }
+         end
+       end
+     end
+¿Qué hace el método “clear”?
+Anidando recursos
+
+ ●   Paso 2: Conﬁrmamos esto creando un producto.
+     2.1: Creamos el producto utilizando nuestra app.
+Anidando recursos
+
+ ●   Paso 2: Conﬁrmamos esto creando un producto.
+     2.2: Conﬁrmamos sus relaciones en consola
+¿Por qué se están repitiendo las
+          relaciones?
+Anidando recursos
+
+ ●     Paso 3: Solucionamos eliminando líneas adicionales.
+
+
+     #app/controllers/product_controller.rb
+     #Eliminar líneas
+
+     @product.categories << Category.where(id: params[:product][:category_ids])
+     @product.categories.clear.push(Category.where(id: params[:product][:category_ids]))
+¿Por qué el método update funcionaba?
+ ¿Si funcionaba porque lo cambiamos?
+Anidando recursos
+
+ ●   Paso 4: Volvemos a probar creando un producto.
+Anidando recursos
+
+ ●   Paso 5: Revisamos resultado en consola.
+Anidando recursos
+
+ ●   Paso 6: Al crear un producto debemos poder crear una categoría
+     6.1: Agregar al modelo de productos que acepte atributos anidados.
+
+     #app/models/product.rb
+
+       accepts_nested_attributes_for :categories, reject_if: :no_name_category
+
+       def no_name_category(attributes)
+         attributes['name'].blank?
+       end
+Anidando recursos
+
+ ●   Paso 6: Al crear un producto debemos poder crear una categoría
+     6.2: Agregar a los strong params que acepte los atributos de categorías.
+
+
+     #app/controllers/ProductController.rb
+
+     def product_params
+       params.require(:product).permit(:name, :price, :size, {category_ids: []}, categories_attributes: [:id, :name])
+     end
+¿Qué pasa si no ponemos el “id” en los
+        atributos aceptados?
+Anidando recursos
+
+ ●   Paso 6: Al crear un producto debemos poder crear una categoría
+     6.3: Agregar al método new que hacer con los nuevos parámetros.
+
+
+     #app/controllers/ProductController.rb
+
+     def new
+       @product = Product.new
+       @product.categories.build
+     end
+Anidando recursos
+
+ ●   Paso 6: Al crear un producto debemos poder crear una categoría
+     6.4: Agregamos campos de categorías al formulario.
+
+     #app/views/products/_form.html.erb
+
+     <%= form.fields_for :categories do |ff| %>
+       <div class= "form-group">
+         <%= ff.label :name, "Category Name" %>
+         <%= ff.text_field :name, class: "form-control" %>
+       </div>
+     <% end %>
+Anidando recursos
+
+ ●   Paso 7: Creamos un producto utilizando nuestra app.
+Anidando recursos
+
+ ●   Paso 8: Veriﬁcamos resultados en consola.
+Anidando recursos
+
+ ●   Paso 9: Los productos deben aparecer con una lista de sus categorías. Listas
+     bootrstrap
+     #app/views/products/_show.html.erb
+
+
+     <div class="row">
+       <div class="col-md-6">
+         <%= render @product %>
+       </div>
+       <div class="col-md-6">
+         <ol class="list-group list-group-numbered">
+            <% @product.categories.each do |pc| %>
+              <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div class="ms-2 me-auto">
+                  <div class="fw-bold"><%= pc.name %></div>
+                  <span class="badge bg-primary rounded-pill"><%= pc.products.count %></span>
+                </div>
+              </li>
+            <% end %>
+         </ol>
+       </div>
+     </div>
+Anidando recursos
+
+En la plataforma tendrás el código ﬁnal de este ejercicio con el nombre “Códigos
+terminados - Catálogo de Productos”
+¿Cuál es la ventaja de utilizar
+   formularios anidados?
+Próxima sesión…
+●   Guía de ejercicios.
+

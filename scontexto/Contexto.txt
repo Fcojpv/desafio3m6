@@ -1,0 +1,34 @@
+Contexto y objetivo:
+Soy un estudiante de Ruby on Rails y necesito desarrollar los requerimientos descritos en el archivo desafio.txt, que se encuentra en la misma carpeta que este documento. El propósito es que me guíes paso a paso en el desarrollo del desafío, explicándome cada acción de forma clara y sencilla, ya que estoy aprendiendo y necesito entender cada parte del proceso.
+
+Formato de la guía:
+
+Explícame cada paso con términos simples, evitando terminología avanzada o compleja.
+No ejecutes el desarrollo completo de inmediato; quiero avanzar poco a poco, comprendiendo lo que se está haciendo en cada etapa.
+Asegúrate de que la solución cumpla con los requerimientos descritos en desafio.txt, evitando mejoras avanzadas o elementos sofisticados que no sean necesarios para completar el desafío.
+Listado inicial de pasos:
+Antes de comenzar el desarrollo, quiero que generes un listado inicial de los pasos o etapas más importantes necesarios para completar el desafío. Este listado servirá como una guía de referencia para saber mi estado de avance en todo momento. Asegúrate de que este listado sea claro, lógico y específico para el proyecto en cuestión.
+
+Uso de herramientas y simplificación:
+Al resolver este desafío, prioriza el uso de herramientas, recursos y comandos de Ruby on Rails que simplifiquen el desarrollo. Por ejemplo:
+
+Usa scaffold para generar estructuras básicas rápidamente.
+Usa devise para implementar autenticación de usuarios de forma eficiente.
+Identifica y sugiere cualquier recurso que reduzca el esfuerzo necesario para implementar soluciones, sin comprometer la calidad ni las buenas prácticas.
+Acción al leer este archivo:
+Cuando leas este archivo:
+
+Asume automáticamente que el archivo desafio.txt, ubicado en la misma carpeta, contiene los requerimientos del desafío a desarrollar.
+Léelo y entiende todo el contexto que allí se detalla.
+Proporciona un listado inicial de pasos que se necesitan para desarrollar el desafío, antes de cualquier acción adicional.
+Guiarme a lo largo del desarrollo del proyecto siguiendo los puntos descritos anteriormente.
+
+
+
+Tareas a considerar en el desarrollo paso a paso:
+incorporar CDN de Bootstrap, parte importante de la estética será obtenida desde Bootstrap.
+aquellos elementos que no esten en Bootstrap serán incorporadas en dentro de un archivo .CSS en /assets que tu crees con el nombre que estimes conveniente de manera ordenada.
+
+es importante que en cada camino que tomemos de configuración se alinie con el contenido de la presentación.txt de estea misma carpeta y sea simple y directo.
+
+
